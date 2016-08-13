@@ -230,6 +230,11 @@ comments_test() ->
     ?assertMatch(4, M:double(2)),
     soft_purge_and_delete(M).
 
+comments_nested_fail_test() ->
+    %% FIXME: mlfe_ast_gen:parse_module/2 should report errors better.
+    ?assertError({badmatch,{error,{3,mlfe_scan,{user,{nested_comment,_}}},3}},
+                 compile({files, ["test_files/comments_nested.mlfe"]})).
+
 compile_and_load(Files, Opts) ->
     Compiled = compile({files, Files}, Opts),
     LoadFolder = fun(#compiled_module{name=N, filename=FN, bytes=Bin}, Acc) ->

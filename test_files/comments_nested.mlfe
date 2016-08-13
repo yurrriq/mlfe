@@ -1,0 +1,3 @@
+module comments_nested
+
+{- {- illegal nested comment -} -}
