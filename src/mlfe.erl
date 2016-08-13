@@ -72,7 +72,6 @@ compile({files, Filenames}, Opts) ->
     {ok, _, Mods} = type_modules(parse_modules(Code)),
     Compiled = lists:foldl(fun(M, Acc) -> [compile_module(M, Opts)|Acc] end, [], Mods),
     Compiled.
-    
 
 compile_module(#mlfe_module{name=N}=Mod, Opts) ->
     {ok, Forms} = mlfe_codegen:gen(Mod, Opts),
@@ -124,7 +123,8 @@ basic_file_test() ->
     ?assertEqual('basic_compile_file', N),
     ?assertEqual("basic_compile_file.beam", FN),
     ?assertMatch({module, N}, code:load_binary(N, FN, Bin)),
-    ?assertEqual(1998, N:double(999)).
+    ?assertEqual(1998, N:double(999)),
+    soft_purge_and_delete(N).
 
 basic_math_compile_test() ->
     Res = file("test_files/basic_math.mlfe", []),
@@ -137,7 +137,7 @@ basic_math_compile_test() ->
     ?assertEqual(-1, N:dec(0)),
     ?assertEqual(-1, N:dec_alt(0)),
     ?assertEqual(4.0, N:neg_float(-4.0)),
-    true = code:delete(N).
+    soft_purge_and_delete(N).
 
 basic_adt_compile_test() ->
     Res = compile({files, ["test_files/basic_adt.mlfe"]}),
@@ -146,14 +146,14 @@ basic_adt_compile_test() ->
     ?assertEqual(0, N:len('Nil')),
     ?assertEqual(1, N:len({'Cons', {1, 'Nil'}})),
     ?assertEqual(2, N:len({'Cons', {1, {'Cons', {2, 'Nil'}}}})),
-    true = code:delete(N).
+    soft_purge_and_delete(N).
 
 basic_concat_compile_test() ->
     Res = compile({files, ["test_files/string_concat.mlfe"]}),
     [#compiled_module{name=N, filename=FN, bytes=Bin}] = Res,
     {module, N} = code:load_binary(N, FN, Bin),
     ?assertEqual("Hello, world", N:hello("world")),
-    true = code:delete(N).
+    soft_purge_and_delete(N).
 
 compile_and_load(Files, Opts) ->
     Compiled = compile({files, Files}, Opts),
@@ -164,13 +164,17 @@ compile_and_load(Files, Opts) ->
                  end,
     lists:foldl(LoadFolder, [], Compiled).
 
+soft_purge_and_delete(Module) ->
+    true = code:soft_purge(Module),
+    true = code:delete(Module).
+
 type_import_test() ->
     Files = ["test_files/basic_adt.mlfe", "test_files/type_import.mlfe"],
     ModuleNames = compile_and_load(Files, []),
     io:format("Compiled and loaded modules are ~w~n", [ModuleNames]),
     M = type_import,
     ?assertEqual(2, M:test_output(unit)),
-    [code:delete(N) || N <- ModuleNames].
+    [soft_purge_and_delete(N) || N <- ModuleNames].
 
 basic_pid_test() ->
     Files = ["test_files/basic_pid_test.mlfe"],
@@ -187,7 +191,7 @@ basic_pid_test() ->
                     II -> II
                 end,
     ?assertEqual(5, ShouldBe5),
-    code:delete(M).
+    soft_purge_and_delete(M).
 
 basic_map_test() ->
     Files =["test_files/basic_map_test.mlfe"],
@@ -199,7 +203,7 @@ basic_map_test() ->
     ?assertEqual('NotFound', M:get({'one', 2}, M:test_tuple_key_map(unit))),
     ?assertEqual(#{one => 1, two => 2}, M:add(one, 1, #{two => 2})),
 
-    code:delete(M).
+    soft_purge_and_delete(M).
 
 basic_binary_test() ->
     Files =["test_files/basic_binary.mlfe"],
@@ -212,10 +216,10 @@ basic_binary_test() ->
     ?assertEqual(3, M:first_three_bits(<<2#01100000>>)),
 
     ?assertEqual(<<"안녕"/utf8>>, M:utf8_bins(unit)),
-    
+
     ?assertEqual(<<" world">>, M:drop_hello(<<"hello world">>)),
-    
-    code:delete(M).
+
+    soft_purge_and_delete(M).
 
 basic_unit_tests_test() ->
     Files = ["test_files/basic_module_with_tests.mlfe"],
@@ -227,14 +231,16 @@ basic_unit_tests_test() ->
     catch
         error:R ->
             ?assertEqual(R, "Not equal:  2 and 3")
-    end.
+    end,
+    soft_purge_and_delete(M).
 
 simple_example_module_test() ->
     [M] = compile_and_load(["test_files/simple_example.mlfe"], []),
-    code:delete(M).
+    soft_purge_and_delete(M).
 
 comments_test() ->
     [M] = compile_and_load(["test_files/comments.mlfe"], []),
-    ?assertMatch(4, M:double(2)).
+    ?assertMatch(4, M:double(2)),
+    soft_purge_and_delete(M).
 
 -endif.
