@@ -155,19 +155,6 @@ basic_concat_compile_test() ->
     ?assertEqual("Hello, world", N:hello("world")),
     soft_purge_and_delete(N).
 
-compile_and_load(Files, Opts) ->
-    Compiled = compile({files, Files}, Opts),
-    LoadFolder = fun(#compiled_module{name=N, filename=FN, bytes=Bin}, Acc) ->
-                         {module, N} = code:load_binary(N, FN, Bin),
-                         io:format("Loaded ~w ~s~n", [N, FN]),
-                         [N|Acc]
-                 end,
-    lists:foldl(LoadFolder, [], Compiled).
-
-soft_purge_and_delete(Module) ->
-    true = code:soft_purge(Module),
-    true = code:delete(Module).
-
 type_import_test() ->
     Files = ["test_files/basic_adt.mlfe", "test_files/type_import.mlfe"],
     ModuleNames = compile_and_load(Files, []),
@@ -242,5 +229,18 @@ comments_test() ->
     [M] = compile_and_load(["test_files/comments.mlfe"], []),
     ?assertMatch(4, M:double(2)),
     soft_purge_and_delete(M).
+
+compile_and_load(Files, Opts) ->
+    Compiled = compile({files, Files}, Opts),
+    LoadFolder = fun(#compiled_module{name=N, filename=FN, bytes=Bin}, Acc) ->
+                         {module, N} = code:load_binary(N, FN, Bin),
+                         io:format("Loaded ~w ~s~n", [N, FN]),
+                         [N|Acc]
+                 end,
+    lists:foldl(LoadFolder, [], Compiled).
+
+soft_purge_and_delete(Module) ->
+    true = code:soft_purge(Module),
+    true = code:delete(Module).
 
 -endif.
